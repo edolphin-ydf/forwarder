@@ -59,7 +59,7 @@ ports 格式举例10080:80,3363,18080:8080
 -server: "ip:port" ip:中转服务器的 port:public-server中listen的端口
 ```
 
-## 动态更新真是服务器地址
+## 动态更新真实服务器地址
 
 public-server上暴露了api `/updatesrv?srv=real-ip` 可通过定时脚本，动态更新真实服务器的公网出口ip到中转服务器上
 
