@@ -9,15 +9,19 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/xtaci/smux"
 )
 
 var (
 	portsStr = flag.String("ports", "", "")
-	server = flag.String("server", "", "")
+	serverFlag = flag.String("server", "", "")
 	authKey = flag.String("auth", "", "")
 	port = flag.String("port", "", "")
+
+	server = atomic.Value{}
+	session = atomic.Value{}
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -45,15 +49,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return	
 	} else {
 		log.Println("I: set new server:", srv[0])
-		*server = srv[0]
+		server.Store(srv[0])
 		return
 	}
 }
 
-var session *smux.Session
-
 func main() {
 	flag.Parse()
+	server.Store(*serverFlag)
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -70,12 +73,18 @@ func main() {
 				continue
 			}
 			remoteAddr := strings.Split(conn.RemoteAddr().String(), ":")
-			if remoteAddr[0] != *server {
-				log.Println("W: remote addr:", conn.RemoteAddr().String(), "server addr:", *server, "droped!")
+			srv := server.Load().(string)
+			if remoteAddr[0] != srv {
+				log.Println("W: remote addr:", conn.RemoteAddr().String(), "server addr:", srv, "droped!")
 				continue
 			}
 
-			session, err = smux.Client(conn, nil)
+			if s, err := smux.Client(conn, nil); err != nil {
+				log.Panicln("E:", err)
+				continue
+			} else {
+				session.Store(s)
+			}
 		}
 	}()
 
@@ -107,13 +116,14 @@ func listenOnPort(port string) {
 			log.Println("I: new connection from:", conn.RemoteAddr().String())
 
 			go func(port string) {
-				stream, err := session.OpenStream()
+				s := session.Load().(*smux.Session)
+				stream, err := s.OpenStream()
 				if err != nil {
 					log.Println("E:", err)
 					return
 				}
 				srvCon := stream
-				log.Println("I: opened new stream to server:", session.RemoteAddr().String(), "port:", port)
+				log.Println("I: opened new stream to server:", s.RemoteAddr().String(), "port:", port)
 
 				// write port first
 				var buf [4]byte

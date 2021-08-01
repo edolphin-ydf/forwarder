@@ -27,7 +27,7 @@ func main() {
 	flag.Parse()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	for {
+	for { // for retry
 		conn, err := net.Dial("tcp", *server)
 		if err != nil {
 			log.Println("E:", err)
