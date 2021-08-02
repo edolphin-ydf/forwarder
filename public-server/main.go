@@ -127,7 +127,11 @@ func listenOnPort(port string) {
 		log.Println("I: new connection from:", conn.RemoteAddr().String())
 
 		go func(port string) {
-			s := session.Load().(*smux.Session)
+			s, ok := session.Load().(*smux.Session)
+			if !ok {
+				log.Println("I: session not ready, do nothing")
+				return
+			}
 			stream, err := s.OpenStream()
 			if err != nil {
 				log.Println("E:", err)
@@ -146,10 +150,14 @@ func listenOnPort(port string) {
 			go func() {
 				if _, err := io.Copy(conn, srvCon); err != nil {
 					log.Println("E:", err)
+					conn.Close()
+					srvCon.Close()
 				}
 			}()
 			if _, err := io.Copy(srvCon, conn); err != nil {
 				log.Println("E:", err)
+				conn.Close()
+				srvCon.Close()
 			}
 		}(dstPort)
 	}

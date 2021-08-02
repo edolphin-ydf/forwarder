@@ -72,11 +72,15 @@ func handleConn(c net.Conn) {
 	go func() {
 		if _, err := io.Copy(dstConn, c); err != nil {
 			log.Println("E:", err)
+			dstConn.Close()
+			c.Close()
 		}
 	}()
 	go func() {
 		if _, err := io.Copy(c, dstConn); err != nil {
 			log.Println("E:", err)
+			dstConn.Close()
+			c.Close()
 		}
 	}()
 }
