@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/xtaci/smux"
@@ -69,19 +70,24 @@ func handleConn(c net.Conn) {
 
 	log.Println("D: new stream from:", c.RemoteAddr().String(), "port:", port)
 
+	closeOnce := sync.Once{}
 	go func() {
 		if _, err := io.Copy(dstConn, c); err != nil {
 			log.Println("E:", err)
+		}
+		closeOnce.Do(func() {
 			dstConn.Close()
 			c.Close()
-		}
+		})
 	}()
 	go func() {
 		if _, err := io.Copy(c, dstConn); err != nil {
 			log.Println("E:", err)
+		}
+		closeOnce.Do(func() {
 			dstConn.Close()
 			c.Close()
-		}
+		})
 	}()
 }
 

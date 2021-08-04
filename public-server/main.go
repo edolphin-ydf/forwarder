@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/xtaci/smux"
@@ -147,18 +148,23 @@ func listenOnPort(port string) {
 			srvCon.Write(buf[:])
 
 			// then copy data
+			closeOnce := sync.Once{}
 			go func() {
 				if _, err := io.Copy(conn, srvCon); err != nil {
 					log.Println("E:", err)
+				}
+				closeOnce.Do(func() {
 					conn.Close()
 					srvCon.Close()
-				}
+				})
 			}()
 			if _, err := io.Copy(srvCon, conn); err != nil {
 				log.Println("E:", err)
+			}
+			closeOnce.Do(func() {
 				conn.Close()
 				srvCon.Close()
-			}
+			})
 		}(dstPort)
 	}
 }
